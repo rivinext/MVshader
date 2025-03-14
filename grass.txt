@@ -1,0 +1,80 @@
+// xs_begin
+// author : '@your_username'
+// arg : { var = 'min_height' name = 'Minimum Height' value = '1' range = '1 256' step = '1' precision = '0' }
+// arg : { var = 'max_height' name = 'Maximum Height' value = '7' range = '1 256' step = '1' precision = '0' }
+// arg : { var = 'density' name = 'Density' value = '0.5' range = '0.0 1.0' step = '0.05' precision = '2' }
+// xs_end
+
+//===== built-in args =====
+// uniform vec3     i_volume_size;     // Volume size [1-256] in each axis
+// uniform float    i_color_index;     // Current color index [0-255] for grass
+// uniform int      i_num_color_sels;  // Number of color selections [1-255]
+
+//===== built-in functions ===== 
+// float voxel( vec3 v );              // Get voxel color index at position v
+// float color_sel( float k );         // Get kth selected color index
+// vec4 palette( float index );        // Get palette color
+
+// Function to generate a pseudo-random value based on a 2D coordinate
+float rand(vec2 co){
+    return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453);
+}
+
+float map(vec3 v) {
+    // Current voxel's (x, y) position rounded down to integer
+    vec2 xy = floor(v.xy);
+    
+    // Initialize base_z to -1.0 (invalid)
+    float base_z = -1.0;
+    
+    // Iterate from top to bottom to find the highest selected voxel at (x, y)
+    for(int z = int(i_volume_size.z) - 1; z >= 0; z--){
+        vec3 current_pos = vec3(xy, float(z));
+        float voxel_val = voxel(current_pos);
+        if(voxel_val > 0.5){
+            base_z = float(z);
+            break;
+        }
+    }
+    
+    // Determine if any voxel is selected in this (x, y) column
+    bool is_selected = base_z >= 0.0;
+    
+    // If no voxel is selected, do not generate grass
+    if(!is_selected){
+        // Return the existing voxel color
+        return voxel(v);
+    }
+    
+    // Decide whether to generate grass in this (x, y) column based on density
+    // This check is done once per column to ensure continuous grass
+    float grass_chance = rand(xy);
+    bool generate_grass = grass_chance <= density;
+    
+    if(!generate_grass){
+        // Do not generate grass for this column
+        return voxel(v);
+    }
+    
+    // Assign grass height for this column
+    // The height is consistent across the entire grass column
+    float grass_height = min_height + rand(xy + vec2(1.0, 1.0)) * (max_height - min_height);
+    
+    // Determine the voxel's z position relative to the base voxel
+    float relative_z = v.z - (base_z + 1.0);
+    
+    // If voxel is within the grass height range
+    if(relative_z >= 0.0 && relative_z < grass_height){
+        // Ensure grass does not exceed the volume's z limit
+        if(v.z < i_volume_size.z){
+            // Generate a random color index from selected colors for this column
+            float color_rand = rand(xy + vec2(2.0, 2.0));
+            float color_index = floor(color_rand * float(i_num_color_sels));
+            float grass_color_index = color_sel(color_index);
+            return grass_color_index; // Set voxel to randomly selected grass color
+        }
+    }
+    
+    // Otherwise, return the existing voxel color
+    return voxel(v);
+}
