@@ -1,6 +1,3 @@
-VER2
-
-
 // xs_begin
 // author : '@your_username'
 // arg : { var = 'min_height' name = 'Minimum Height' value = '1' range = '1 256' step = '1' precision = '0' }
